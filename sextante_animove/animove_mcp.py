@@ -132,6 +132,8 @@ class AnimoveMCP(QgsProcessingAlgorithm):
         fields.append(QgsField('Area', QVariant.Double))
         fields.append(QgsField('Perim', QVariant.Double))
 
+       
+
         (sink, dest_id) = self.parameterAsSink(
             parameters,
             self.OUTPUT,
@@ -140,15 +142,18 @@ class AnimoveMCP(QgsProcessingAlgorithm):
             QgsWkbTypes.MultiPolygon, # polygon layer
             input_layer.sourceCrs()  # same CRS of the input layer
         )
-
+        
         # calculte how many unique values are in the input field
         index = input_layer.fields().indexOf(input_field) # get the index of the field
         uniqueValues = input_layer.uniqueValues(index) # this is a set object
-
+       
         # initialize QgsDistanceArea to measure the lines afterwards
         distArea = QgsDistanceArea()
         distArea.setSourceCrs(input_layer.sourceCrs(), context.transformContext())
         distArea.setEllipsoid(context.project().ellipsoid())
+
+
+        print(uniqueValues)
 
         total = 100 / len(uniqueValues) if uniqueValues else 0
 
@@ -164,33 +169,44 @@ class AnimoveMCP(QgsProcessingAlgorithm):
             cx = 0.00  # x of mean coodinate
             cy = 0.00  # y of mean coordinate
             nf = 0
+            
 
             
          
             # loop into the input layer features
             for feature in input_layer.getFeatures():
+                
+               
 
               
 
                 # get the value of the input field for each feature
                 fieldValue = feature[f"{input_field}"]
-                print(fieldValue)
+
+          
+                
                 # test if the value is the same of the unique value
                 if fieldValue == value:
 
                     # get the geometry as QgsPointXY
                     try:
+                        print("hey im here")
                         point = feature.geometry().asPoint()
                         cx += point.x()
                         cy += point.y()
                         nf += 1
-                    except ValueError:
+                    except Exception:
+                        print("Not a valid entry")
                         continue
             
-            
-            cx = (cx / nf)
-            cy = (cy / nf)
-            meanPoint = QgsPointXY(cx, cy)
+
+            try:
+                cx = (cx / nf)
+                cy = (cy / nf)
+                meanPoint = QgsPointXY(cx, cy)
+            except ZeroDivisionError:
+                continue
+           
 
             # initialize dictionary to store geometries and distances
             distanceGeometryMap = {}
