@@ -211,9 +211,11 @@ class AnimoveRandomHR(QgsProcessingAlgorithm):
                 'multipolygon.'))
         
         # loop into the vector layer and get the difference polygon
-        print("ERROR ANIMOVE HR")
-        print(studyLayer.getFeatures(QgsFeatureRequest().setFilterFid(0)))
-        f = next(studyLayer.getFeatures(QgsFeatureRequest().setFilterFid(0)))
+        if studyLayer.getFeatures(QgsFeatureRequest().setFilterFid(0)).isValid():
+            raise QgsProcessingException(self.tr('Problem layer not valid.'))
+
+        f = QgsFeature()
+        studyLayer.getFeatures(QgsFeatureRequest().setFilterFid(0)).nextFeature(f)
         # get the geom bbox
         rect = f.geometry().boundingBox()
         # get the difference between the bbox and the geometry
@@ -461,7 +463,7 @@ class AnimoveRandomHR(QgsProcessingAlgorithm):
             f.write(f'<p>mean: {mean: .2f} squared meters</p>\n')
             f.write(f'<p>standard deviation: {sd: .2f} squared meters</p>\n')
             f.write(f'<p>observed-randomized: {(self.overlapsTotal[0] - mean): .2f} squared meters</p>\n\n')
-            f.write(f'<p>observed/randomized: {(self.overlapsTotal[0] / mean): .2f} squared meters</p>\n\n')
+            #f.write(f'<p>observed/randomized: {(self.overlapsTotal[0] / mean): .2f} squared meters</p>\n\n')
 
             f.write('</body></html>')
         
