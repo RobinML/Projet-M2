@@ -273,9 +273,12 @@ class AnimoveKernelDensity(QgsProcessingAlgorithm):
             for feature in inputLayer.getFeatures():
                 fieldValue = feature[field]
                 if (fieldValue == value):
-                    points = feature.geometry().asPoint()
-                    xPoints.append(points.x())
-                    yPoints.append(points.y())
+                    try:
+                        points = feature.geometry().asPoint()
+                        xPoints.append(points.x())
+                        yPoints.append(points.y())
+                    except ValueError:
+                        continue
 
             # Compute kernel (X, Y, Z)
             xmin = min(xPoints) - 0.5 * (max(xPoints) - min(xPoints))
