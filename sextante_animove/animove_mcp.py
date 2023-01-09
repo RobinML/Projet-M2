@@ -263,6 +263,38 @@ class AnimoveMCP(QgsProcessingAlgorithm):
 
 
         return {self.OUTPUT: dest_id}
+      
+   def postProcessAlgorithm(self, context, feedback):
+        """
+        PostProcessing to define the Symbology
+        """
+        output = QgsProcessingUtils.mapLayerFromString(self.dest_id, context)
+        correct = {
+            '1.Bianca':('green','Josie'),
+            '2.Bianca':('yellow','Bianca'),
+            '3.Josie':('orange','Lula'),
+            '4.Evelyn':('red','Evelyn')
+            }
+
+        categories=[]
+        for animal, (color, label) in correct.items():
+            sym = QgsSymbol.defaultSymbol(output.geometryType())
+            sym.setColor(QColor(color))
+            category = QgsRendererCategory(animal, sym, label)
+            categories.append(category)
+
+        # name the field containing the land use value:
+        field = "ID"
+
+        # build the renderer:
+        renderer = QgsCategorizedSymbolRenderer(field, categories)
+
+        # add the renderer to the layer:
+        output.setRenderer(renderer)
+
+        output.startEditing()
+
+        return {self.OUTPUT: self.dest_id}
 
     def percpoints(self, percent, list_distances, l):
         l = (l * percent) / 100
