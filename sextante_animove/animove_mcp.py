@@ -31,22 +31,30 @@ __copyright__ = '(C) 2021 by Matteo Ghetta (Faunalia)'
 __revision__ = '$Format:%H$'
 
 from qgis.PyQt.QtCore import QCoreApplication, QVariant
-from qgis.PyQt.QtGui import QIcon
+from qgis.PyQt.QtGui import QIcon,QColor
 
-from qgis.core import (QgsProcessing,
+
+
+from qgis.core import (QgsProject,
+                       QgsProcessing,
                        QgsMessageLog,
                        QgsFeatureSink,
                        QgsProcessingAlgorithm,
                        QgsProcessingParameterField,
                        QgsProcessingParameterNumber,
+                       QgsProcessingLayerPostProcessorInterface,
                        QgsWkbTypes,
                        QgsFields,
                        QgsField,
                        QgsPointXY,
                        QgsDistanceArea,
                        QgsGeometry,
+                       QgsSymbol,
+                       QgsProcessingUtils,
                        QgsFeature,
+                       QgsRendererCategory,
                        QgsProcessingParameterFeatureSource,
+                       QgsCategorizedSymbolRenderer,
                        QgsProcessingParameterFeatureSink)
 
 import os
@@ -57,6 +65,8 @@ class AnimoveMCP(QgsProcessingAlgorithm):
     FIELD = 'FIELD'
     PERCENT = 'PERCENT'
     OUTPUT = 'OUTPUT'
+
+    dest_id=0
 
     def initAlgorithm(self, config):
 
@@ -91,14 +101,21 @@ class AnimoveMCP(QgsProcessingAlgorithm):
             )
         )
 
+       
         # output sink
         self.addParameter(
-            QgsProcessingParameterFeatureSink(
+           QgsProcessingParameterFeatureSink(
                 self.OUTPUT,
-                self.tr('Mcp')
+                self.tr('OUTPUTLAYER'),
+                QgsProcessing.TypeVectorPolygon
             )
         )
 
+      
+
+        
+
+      
     def processAlgorithm(self, parameters, context, feedback):
 
         # get reference of the input layer
@@ -131,6 +148,7 @@ class AnimoveMCP(QgsProcessingAlgorithm):
         fields.append(QgsField('ID', QVariant.String))
         fields.append(QgsField('Area', QVariant.Double))
         fields.append(QgsField('Perim', QVariant.Double))
+        fields.append(QgsField('Color', QVariant.Double))
 
        
 
@@ -153,7 +171,6 @@ class AnimoveMCP(QgsProcessingAlgorithm):
         distArea.setEllipsoid(context.project().ellipsoid())
 
 
-        print(uniqueValues)
 
         total = 100 / len(uniqueValues) if uniqueValues else 0
 
@@ -190,16 +207,14 @@ class AnimoveMCP(QgsProcessingAlgorithm):
 
                     # get the geometry as QgsPointXY
                     try:
-                        print("hey im here")
+                       
                         point = feature.geometry().asPoint()
                         cx += point.x()
                         cy += point.y()
                         nf += 1
                     except Exception:
-                        print("Not a valid entry")
+                      
                         continue
-            
-
             try:
                 cx = (cx / nf)
                 cy = (cy / nf)
@@ -255,6 +270,11 @@ class AnimoveMCP(QgsProcessingAlgorithm):
                     # add the attributes to the feature
                     outFeat.setAttributes(attrs)
 
+                    
+                   
+
+                 
+
                     # write the feature into the QgsFeatureSink
                     sink.addFeature(outFeat, QgsFeatureSink.FastInsert)
 
@@ -262,9 +282,13 @@ class AnimoveMCP(QgsProcessingAlgorithm):
             feedback.setProgress(int(current * total))
 
 
+        
+
+        
+        self.dest_id = dest_id
         return {self.OUTPUT: dest_id}
-      
-   def postProcessAlgorithm(self, context, feedback):
+
+    def postProcessAlgorithm(self, context, feedback):
         """
         PostProcessing to define the Symbology
         """
@@ -291,7 +315,7 @@ class AnimoveMCP(QgsProcessingAlgorithm):
 
         # add the renderer to the layer:
         output.setRenderer(renderer)
-
+    
         output.startEditing()
 
         return {self.OUTPUT: self.dest_id}
@@ -338,3 +362,10 @@ class AnimoveMCP(QgsProcessingAlgorithm):
 
     def createInstance(self):
         return AnimoveMCP()
+
+class LayerStyler(QgsProcessingLayerPostProcessorInterface):
+        print("yolo")
+        def postProcessLayer (self, layer, context, feedback):
+            print(layer)
+           
+                
