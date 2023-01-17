@@ -299,12 +299,14 @@ class AnimoveMCP(QgsProcessingAlgorithm):
             '3.Josie':('orange','Lula'),
             '4.Evelyn':('red','Evelyn')
             }
-
+        field_name='ID'
+        field_index = output.fields().indexFromName(field_name)
+        unique_values = output.uniqueValues(field_index)
         categories=[]
-        for animal, (color, label) in correct.items():
+        for value in unique_values:
             sym = QgsSymbol.defaultSymbol(output.geometryType())
-            sym.setColor(QColor(color))
-            category = QgsRendererCategory(animal, sym, label)
+           
+            category = QgsRendererCategory(value, sym, str(value))
             categories.append(category)
 
         # name the field containing the land use value:
@@ -312,10 +314,9 @@ class AnimoveMCP(QgsProcessingAlgorithm):
 
         # build the renderer:
         renderer = QgsCategorizedSymbolRenderer(field, categories)
-
+        renderer.updateColorRamp(QgsRandomColorRamp())
         # add the renderer to the layer:
         output.setRenderer(renderer)
-    
         output.startEditing()
 
         return {self.OUTPUT: self.dest_id}
