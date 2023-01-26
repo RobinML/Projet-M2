@@ -34,10 +34,14 @@ from qgis.PyQt.QtCore import QCoreApplication, QVariant
 from qgis.PyQt.QtGui import QIcon
 
 from qgis.core import (QgsProcessing,
+                       QgsSymbol,
                        QgsProcessingAlgorithm,
+                       QgsRendererCategory,
                        QgsProcessingParameterField,
                        QgsProcessingParameterNumber,
                        QgsWkbTypes,
+                       QgsRandomColorRamp,
+                       QgsCategorizedSymbolRenderer,
                        QgsFields,
                        QgsField,
                        QgsRasterLayer,
@@ -96,6 +100,7 @@ class AnimoveKernelDensity(QgsProcessingAlgorithm):
 
      # Output
     OUTPUT = 'OUTPUT'
+    dest_id=0
 
     def initAlgorithm(self, config):
 
@@ -391,6 +396,33 @@ class AnimoveKernelDensity(QgsProcessingAlgorithm):
         
 
         return {self.OUTPUT: dest_id}
+       
+       
+    def postProcessAlgorithm(self, context, feedback):
+        """
+        PostProcessing to define the Symbology
+        """
+        output = QgsProcessingUtils.mapLayerFromString(self.dest_id, context)
+        
+        field_name = 'ID'
+        field_index = output.fields().indexFromName(field_name)
+        unique_values = output.uniqueValues(field_index)
+        
+
+        category_list = []
+        for value in unique_values:
+            symbol = QgsSymbol.defaultSymbol(output.geometryType())
+            category = QgsRendererCategory(value, symbol, str(value))
+            category_list.append(category)
+        
+
+        renderer = QgsCategorizedSymbolRenderer(field_name, category_list)
+        renderer.updateColorRamp(QgsRandomColorRamp())
+        output.setRenderer(renderer)
+    
+        output.startEditing()
+
+        return {self.OUTPUT: self.dest_id}
 
 
     def to_geotiff(self, fname, xmin, xmax, ymin, ymax, X, Y, Z, epsg):
