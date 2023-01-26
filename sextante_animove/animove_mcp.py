@@ -35,14 +35,12 @@ from qgis.PyQt.QtGui import QIcon,QColor
 
 
 
-from qgis.core import (QgsProject,
-                       QgsProcessing,
-                       QgsMessageLog,
+from qgis.core import (QgsProcessing,
                        QgsFeatureSink,
+                       QgsRandomColorRamp,
                        QgsProcessingAlgorithm,
                        QgsProcessingParameterField,
                        QgsProcessingParameterNumber,
-                       QgsProcessingLayerPostProcessorInterface,
                        QgsWkbTypes,
                        QgsFields,
                        QgsField,
@@ -288,35 +286,28 @@ class AnimoveMCP(QgsProcessingAlgorithm):
         self.dest_id = dest_id
         return {self.OUTPUT: dest_id}
 
-    def postProcessAlgorithm(self, context, feedback):
+   def postProcessAlgorithm(self, context, feedback):
         """
         PostProcessing to define the Symbology
         """
         output = QgsProcessingUtils.mapLayerFromString(self.dest_id, context)
-        correct = {
-            '1.Bianca':('green','Josie'),
-            '2.Bianca':('yellow','Bianca'),
-            '3.Josie':('orange','Lula'),
-            '4.Evelyn':('red','Evelyn')
-            }
-        field_name='ID'
+        
+        field_name = 'ID'
         field_index = output.fields().indexFromName(field_name)
         unique_values = output.uniqueValues(field_index)
-        categories=[]
+        
+
+        category_list = []
         for value in unique_values:
-            sym = QgsSymbol.defaultSymbol(output.geometryType())
-           
-            category = QgsRendererCategory(value, sym, str(value))
-            categories.append(category)
+            symbol = QgsSymbol.defaultSymbol(output.geometryType())
+            category = QgsRendererCategory(value, symbol, str(value))
+            category_list.append(category)
+        
 
-        # name the field containing the land use value:
-        field = "ID"
-
-        # build the renderer:
-        renderer = QgsCategorizedSymbolRenderer(field, categories)
+        renderer = QgsCategorizedSymbolRenderer(field_name, category_list)
         renderer.updateColorRamp(QgsRandomColorRamp())
-        # add the renderer to the layer:
         output.setRenderer(renderer)
+    
         output.startEditing()
 
         return {self.OUTPUT: self.dest_id}
