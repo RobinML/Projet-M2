@@ -286,99 +286,101 @@ class AnimoveKernelDensity(QgsProcessingAlgorithm):
                         continue
 
             # Compute kernel (X, Y, Z)
-            xmin = min(xPoints) - 0.5 * (max(xPoints) - min(xPoints))
-            xmax = max(xPoints) + 0.5 * (max(xPoints) - min(xPoints))
-            ymin = min(yPoints) - 0.5 * (max(yPoints) - min(yPoints))
-            ymax = max(yPoints) + 0.5 * (max(yPoints) - min(yPoints))
+            try:
+                xmin = min(xPoints) - 0.5 * (max(xPoints) - min(xPoints))
+                xmax = max(xPoints) + 0.5 * (max(xPoints) - min(xPoints))
+                ymin = min(yPoints) - 0.5 * (max(yPoints) - min(yPoints))
+                ymax = max(yPoints) + 0.5 * (max(yPoints) - min(yPoints))
 
-            # X, Y form a meshgrid
-            X, Y = np.mgrid[xmin:xmax:complex(resolution),
-                            ymin:ymax:complex(resolution)]
-            
-            feedback.pushDebugInfo(f'X shape: {X.shape}')
-            feedback.pushDebugInfo(f'Y shape: {Y.shape}')
+                # X, Y form a meshgrid
+                X, Y = np.mgrid[xmin:xmax:complex(resolution),
+                                ymin:ymax:complex(resolution)]
+                
+                feedback.pushDebugInfo(f'X shape: {X.shape}')
+                feedback.pushDebugInfo(f'Y shape: {Y.shape}')
 
-            # Meshgrid in form of stacked array with all possible positions
-            positions = np.vstack([X.ravel(), Y.ravel()])
+                # Meshgrid in form of stacked array with all possible positions
+                positions = np.vstack([X.ravel(), Y.ravel()])
 
-            # Meshgrid with all the real positions
-            values = np.vstack([xPoints, yPoints])
+                # Meshgrid with all the real positions
+                values = np.vstack([xPoints, yPoints])
 
-            feedback.pushDebugInfo(f'Positions shape : {positions.shape}')
-            feedback.pushDebugInfo(f'Values shape : {values.shape}')
+                feedback.pushDebugInfo(f'Positions shape : {positions.shape}')
+                feedback.pushDebugInfo(f'Values shape : {values.shape}')
 
-            kernel = kernel_density.KDEMultivariate(
-                data=values,
-                var_type='cc',
-                bw=bandwidth
-            )
+                kernel = kernel_density.KDEMultivariate(
+                    data=values,
+                    var_type='cc',
+                    bw=bandwidth
+                )
 
-            # Evaluate positions using kernel
-            Z = np.reshape(kernel.pdf(positions).T, X.T.shape)
+                # Evaluate positions using kernel
+                Z = np.reshape(kernel.pdf(positions).T, X.T.shape)
 
 
-            feedback.pushDebugInfo(f'Bandwidth value for: {str(value)} : {str(kernel.bw)}')
-            feedback.pushDebugInfo(f'Shape of evaluation transponse : : {str(Z.T.shape)}')
+                feedback.pushDebugInfo(f'Bandwidth value for: {str(value)} : {str(kernel.bw)}')
+                feedback.pushDebugInfo(f'Shape of evaluation transponse : : {str(Z.T.shape)}')
 
-            raster_name = f'{inputLayer.sourceName()}_{perc}_{value}_{datetime.date.today()}'
+                raster_name = f'{inputLayer.sourceName()}_{perc}_{value}_{datetime.date.today()}'
 
-            fileName = os.path.join(QgsProcessingUtils.tempFolder(), f'{raster_name}.tif')
+                fileName = os.path.join(QgsProcessingUtils.tempFolder(), f'{raster_name}.tif')
 
-            feedback.pushDebugInfo(f'Writing {fileName} to disc')
+                feedback.pushDebugInfo(f'Writing {fileName} to disc')
 
-            self.to_geotiff(fileName, xmin, xmax, ymin, ymax, X, Y, Z, inputLayer.sourceCrs().srsid())
-            
-            # add to the dictionary the filename and the raster file calculated
-            raster_list.append(fileName)
+                self.to_geotiff(fileName, xmin, xmax, ymin, ymax, X, Y, Z, inputLayer.sourceCrs().srsid())
+                
+                # add to the dictionary the filename and the raster file calculated
+                raster_list.append(fileName)
 
-            feedback.pushDebugInfo('Creating contour lines')
+                feedback.pushDebugInfo('Creating contour lines')
 
-            # Create contour lines (temporary .shp) from GeoTIFF
-            param = {
-                'INPUT':fileName,
-                'BAND':1,
-                'INTERVAL':10,
-                'FIELD_NAME':'values',
-                'CREATE_3D':False,
-                'IGNORE_NODATA':False,
-                'NODATA':None,
-                'OFFSET':0,
-                'EXTRA':'',
-                'OUTPUT':'TEMPORARY_OUTPUT'
-            }
-            contour_layer_str = processing.run("gdal:contour", param, feedback=feedback, context=context)['OUTPUT']
+                # Create contour lines (temporary .shp) from GeoTIFF
+                param = {
+                    'INPUT':fileName,
+                    'BAND':1,
+                    'INTERVAL':10,
+                    'FIELD_NAME':'values',
+                    'CREATE_3D':False,
+                    'IGNORE_NODATA':False,
+                    'NODATA':None,
+                    'OFFSET':0,
+                    'EXTRA':'',
+                    'OUTPUT':'TEMPORARY_OUTPUT'
+                }
+                contour_layer_str = processing.run("gdal:contour", param, feedback=feedback, context=context)['OUTPUT']
 
-            contour_layer = QgsProcessingUtils.mapLayerFromString(contour_layer_str, context)
+                contour_layer = QgsProcessingUtils.mapLayerFromString(contour_layer_str, context)
 
-            outGeom = []
-            area = 0
-            perim = 0
-            measure = QgsDistanceArea()
-            measure.setSourceCrs(inputLayer.sourceCrs(), context.transformContext())
-            measure.setEllipsoid(context.ellipsoid())
-            for feat in contour_layer.getFeatures():
-                polyline = feat.geometry().asPolyline()
-                polygon = QgsGeometry.fromPolygonXY([polyline])
-                perim+=measure.measurePerimeter(polygon)
-                area+=measure.measureArea(polygon)
-                outGeom.append(polyline)
-            
+                outGeom = []
+                area = 0
+                perim = 0
+                measure = QgsDistanceArea()
+                measure.setSourceCrs(inputLayer.sourceCrs(), context.transformContext())
+                measure.setEllipsoid(context.ellipsoid())
+                for feat in contour_layer.getFeatures():
+                    polyline = feat.geometry().asPolyline()
+                    polygon = QgsGeometry.fromPolygonXY([polyline])
+                    perim+=measure.measurePerimeter(polygon)
+                    area+=measure.measureArea(polygon)
+                    outGeom.append(polyline)
+                
 
-            feedback.pushDebugInfo('Writing polylines features')
-            
-            sink_feature = QgsFeature()
+                feedback.pushDebugInfo('Writing polylines features')
+                
+                sink_feature = QgsFeature()
 
-            attrs = []
-            attrs.append(value)
-            attrs.append(area)
-            attrs.append(perim)
+                attrs = []
+                attrs.append(value)
+                attrs.append(area)
+                attrs.append(perim)
 
-            sink_feature.setAttributes(attrs)
-            sink_feature.setGeometry(QgsGeometry.fromMultiPolylineXY(outGeom))
+                sink_feature.setAttributes(attrs)
+                sink_feature.setGeometry(QgsGeometry.fromMultiPolylineXY(outGeom))
 
-            sink.addFeature(sink_feature)
+                sink.addFeature(sink_feature)
 
-            feedback.setProgress(int(current * total))
+                feedback.setProgress(int(current * total))
+            except ValueError:continue
             
 
         # try to add the raster layer to the legend
