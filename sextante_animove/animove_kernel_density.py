@@ -396,7 +396,8 @@ class AnimoveKernelDensity(QgsProcessingAlgorithm):
                     )
                 )
         
-
+        
+        self.dest_id=dest_id
         return {self.OUTPUT: dest_id}
        
        
